@@ -1,0 +1,26 @@
+{
+  "summary": "First-finish smoke test for Sales Morse. Backend (9/9 spec items) and Frontend (all main flows) all working. Demo data auto-loads, brief generation produces all 5 required sections in correct order with valid chunk_id refs, contradictions flagged in INTENT SIGNALS, grounded chat returns citations, OOS chat is refused, feedback persists, citation panel opens from both brief and chat insights.",
+  "tested_scope": ["backend", "frontend", "integration"],
+  "passed": [
+    "POST /api/session/init?load_demo=true returns 3 demo files with correct source_type/source_label (crm, email, transcript)",
+    "POST /api/upload adds a text file, infers source_type, invalidates prior brief (brief becomes None after upload)",
+    "DELETE /api/file/{sid}/{fid} removes the file and returns updated list (ok=true)",
+    "POST /api/brief/generate returns brief with 5 sections in correct order [solution_fit, account_snapshot, intent_signals, commitments, competitive], overall_confidence=0.78 (in [0,1]), each section has >=1 insight with valid chunk_ids",
+    "INTENT SIGNALS has 2 insights with flag='contradiction' (Raj budget approved vs Priya still pending), each citing their own chunk_ids",
+    "All chunk_ids referenced in brief exist in returned chunks array (0 missing refs across 15 chunks)",
+    "POST /api/chat 'Who is the economic buyer?' -> insufficient=false, 1 answer_span with chunk_ids=['demo-crm-note-c1']",
+    "POST /api/chat 'send an email to Priya' -> insufficient=true, empty answer_spans, appropriate reason",
+    "POST /api/feedback vote=up and vote=down both return ok=true and persist",
+    "Frontend: 3 demo file items rendered in left pane on first load, Generate Brief enabled, 'Awaiting signal' shown",
+    "Frontend: Generate Brief renders brief with dot-dash indicator + overall % + per-section % badges (13 insights rendered)",
+    "Frontend: Clicking an insight opens citation-panel with source text, filename, HIGH/color-coded confidence badge",
+    "Frontend: Chat input enabled after brief; 'Who is the champion?' returns chat-citation-span that opens citation panel",
+    "Frontend: feedback-up, feedback-down, feedback-comment all wired; success toast 'Thanks for the feedback' shown",
+    "All required data-testid attributes present and used successfully in the automated flow"
+  ],
+  "failed": [],
+  "action_items": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "retest_needed": false,
+  "full_testing_deferred": true
+}

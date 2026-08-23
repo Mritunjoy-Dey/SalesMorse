@@ -1,0 +1,107 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --sm-bg: #FAF7FB;
+  --sm-surface: #F0E9F5;
+  --sm-ink: #3D3A4A;
+  --sm-signal: #A8D8D0;
+  --sm-blush: #F5C6C6;
+  --sm-conf-high: #A9C5A0;
+  --sm-conf-med: #EAD2A8;
+  --sm-conf-low: #DDA7A5;
+  --sm-border: rgba(61, 58, 74, 0.10);
+  --sm-ink-soft: rgba(61, 58, 74, 0.70);
+  --sm-ink-mute: rgba(61, 58, 74, 0.50);
+}
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--sm-bg);
+  color: var(--sm-ink);
+  font-family: 'Figtree', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "ss01", "cv11";
+}
+
+.font-display { font-family: 'Fraunces', ui-serif, Georgia, serif; font-optical-sizing: auto; letter-spacing: -0.01em; }
+.font-mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+
+/* Shadcn base variables - tuned to Sales Morse palette */
+@layer base {
+  :root {
+    --background: 292 33% 97%;         /* #FAF7FB */
+    --foreground: 251 12% 26%;         /* #3D3A4A */
+    --card: 0 0% 100%;
+    --card-foreground: 251 12% 26%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 251 12% 26%;
+    --primary: 251 12% 26%;
+    --primary-foreground: 292 33% 97%;
+    --secondary: 288 32% 94%;          /* #F0E9F5 */
+    --secondary-foreground: 251 12% 26%;
+    --muted: 288 32% 94%;
+    --muted-foreground: 251 12% 45%;
+    --accent: 173 38% 76%;             /* #A8D8D0 */
+    --accent-foreground: 251 12% 26%;
+    --destructive: 0 62% 76%;          /* #F5C6C6 dusty blush */
+    --destructive-foreground: 251 12% 26%;
+    --border: 251 12% 88%;
+    --input: 251 12% 88%;
+    --ring: 173 38% 76%;
+    --radius: 0.875rem;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground; }
+}
+
+/* Citation-eligible highlight */
+.sm-cite {
+  background-color: rgba(168, 216, 208, 0.28);
+  border-bottom: 1px dashed rgba(61, 58, 74, 0.25);
+  border-radius: 4px;
+  padding: 0 3px;
+  cursor: pointer;
+  transition: background-color 200ms ease-out;
+}
+.sm-cite:hover { background-color: rgba(168, 216, 208, 0.55); }
+.sm-cite.sm-cite-active { background-color: rgba(168, 216, 208, 0.75); box-shadow: 0 0 0 2px rgba(168, 216, 208, 0.6); }
+.sm-cite.sm-flag-contradiction { background-color: rgba(245, 198, 198, 0.35); border-bottom-color: rgba(221, 167, 165, 0.7); }
+.sm-cite.sm-flag-contradiction:hover { background-color: rgba(245, 198, 198, 0.6); }
+
+/* Dot-dash Morse pulse */
+@keyframes sm-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+.sm-pulse > * { animation: sm-pulse 1.4s ease-in-out infinite; }
+.sm-pulse > *:nth-child(2) { animation-delay: 0.18s; }
+.sm-pulse > *:nth-child(3) { animation-delay: 0.36s; }
+.sm-pulse > *:nth-child(4) { animation-delay: 0.54s; }
+.sm-pulse > *:nth-child(5) { animation-delay: 0.72s; }
+
+/* Scrollbar */
+.sm-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.sm-scroll::-webkit-scrollbar-thumb { background: rgba(61, 58, 74, 0.15); border-radius: 8px; }
+.sm-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .sm-pulse > * { animation: none !important; opacity: 0.6; }
+  * { transition-duration: 0.001ms !important; }
+}
+
+/* Focus visible */
+button:focus-visible, [role="button"]:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--sm-signal);
+  outline-offset: 2px;
+}

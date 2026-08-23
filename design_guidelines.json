@@ -1,0 +1,102 @@
+{
+  "theme": "Light Theme (Pastel/Soft)",
+  "concept": "Sales Morse - Decodes messy CRM data into structured, cited Sales Briefs. Visual anchor is 'Morse' (signal vs noise, dot-dash patterns).",
+  "typography": {
+    "fonts": {
+      "display": "Fraunces, serif",
+      "body": "Figtree, sans-serif",
+      "mono": "'IBM Plex Mono', monospace"
+    },
+    "hierarchy": {
+      "h1": "text-4xl sm:text-5xl font-medium tracking-tight text-[#3D3A4A]",
+      "h2": "text-2xl sm:text-3xl font-medium tracking-tight text-[#3D3A4A]",
+      "h3": "text-xl sm:text-2xl font-medium text-[#3D3A4A]",
+      "h4": "text-lg sm:text-xl font-medium text-[#3D3A4A]",
+      "body": "text-base leading-relaxed text-[#3D3A4A]/80",
+      "metadata": "text-sm font-mono tracking-tight text-[#3D3A4A]/60"
+    },
+    "guidelines": "Use Fraunces for large headers and the 'Sales Morse' wordmark to give character. Use Figtree for clean, highly readable body content. Use IBM Plex Mono for citation metadata, timestamps, and confidence scores to reinforce the 'decoding a signal' feel."
+  },
+  "colors": {
+    "background": "#FAF7FB",
+    "surface": "#F0E9F5",
+    "text_primary": "#3D3A4A",
+    "text_secondary": "rgba(61, 58, 74, 0.7)",
+    "accent_primary": "#A8D8D0",
+    "accent_secondary": "#F5C6C6",
+    "confidence": {
+      "high": "#A9C5A0",
+      "medium": "#EAD2A8",
+      "low": "#DDA7A5"
+    },
+    "guidelines": "Do not use pure black. Maintain a soft, barely-there lavender-white background. Highlight/citation colors use the dusty seafoam (#A8D8D0). Confidence indicators use pastel sage, amber, and rose. Ensure text meets APCA/WCAG contrast ratios against pastel surfaces."
+  },
+  "visual_enhancers": {
+    "borders": "Subtle 1px borders using rgba(61, 58, 74, 0.1) to separate panes without heavy lines.",
+    "shadows": "Very soft ambient shadows (shadow-sm or shadow-[0_8px_30px_rgba(61,58,74,0.04)]) to create floating panels. No harsh shadows.",
+    "radius": "Soft rounded corners throughout. Use rounded-2xl (16px) for major panels and rounded-xl (12px) for inner cards/buttons.",
+    "patterns": "Dot-dash Morse patterns for loading states or confidence scores. Rendered via SVG or styled text spans in IBM Plex Mono."
+  },
+  "layouts": {
+    "app_structure": "3-pane horizontal workspace spanning 100vw and 100vh.",
+    "pane_left": "w-[20%] min-w-[250px] flex flex-col p-6 bg-[#FAF7FB] border-r border-[#3D3A4A]/10. Contains File Upload drag-and-drop zone.",
+    "pane_center": "w-[35%] min-w-[350px] flex flex-col p-6 bg-[#FAF7FB] border-r border-[#3D3A4A]/10. Contains Chat interface.",
+    "pane_right": "flex-1 flex flex-col p-8 bg-[#FAF7FB] relative overflow-hidden. Contains the Brief Document.",
+    "side_panel_overlay": "Absolute positioned on the right edge of the Right Pane, sliding in when a citation is clicked. Width ~350px. bg-[#F0E9F5] shadow-lg rounded-l-2xl.",
+    "spacing": "Generous padding (p-6 to p-12). Margins should create breathing room. Do not cram content."
+  },
+  "grids": {
+    "file_upload_grid": "grid grid-cols-1 gap-4 for the list of uploaded files.",
+    "metadata_grid": "grid grid-cols-2 gap-4 for the 'ACCOUNT SNAPSHOT' section in the brief."
+  },
+  "components_strategy": {
+    "buttons": "Pill-shaped (rounded-full) or rounded-xl. bg-[#3D3A4A] text-[#FAF7FB] for primary actions ('Generate Brief'). Hover states should slightly lighten the background and apply a soft shadow.",
+    "upload_zone": "Dashed border border-[#3D3A4A]/20, bg-[#F0E9F5]/50, rounded-2xl, p-8 flex flex-col items-center justify-center hover:bg-[#F0E9F5] transition-colors.",
+    "file_items": "Flex row, rounded-xl p-3 bg-[#F0E9F5]. Use color-coded dots (w-3 h-3 rounded-full) for file types (e.g., green for CRM, blue for email).",
+    "chat_bubbles": "User: bg-[#F0E9F5] text-[#3D3A4A] rounded-2xl rounded-tr-sm. AI: bg-white border border-[#3D3A4A]/10 text-[#3D3A4A] rounded-2xl rounded-tl-sm.",
+    "brief_document": "bg-white rounded-2xl p-8 lg:p-12 shadow-sm. 5 specific sections. Clickable sentences highlighted with bg-[#A8D8D0]/30 hover:bg-[#A8D8D0]/60 transition-colors cursor-pointer.",
+    "citation_panel": "Sliding panel showing exact source chunk. Header includes filename and dot-dash confidence score.",
+    "feedback_box": "Thumbs up/down buttons + text area (rounded-xl, bg-[#F0E9F5] border-none focus:ring-2 focus:ring-[#A8D8D0]) at the bottom of the brief."
+  },
+  "motion": {
+    "transitions": "Use 'transition-all duration-300 ease-out' for hover states. specifically avoid 'transition: all' in CSS files, use Tailwind utilities.",
+    "citation_click": "Smooth slide-in transition for the side panel. No abrupt swaps.",
+    "loading_states": "Pulse animations on dot-dash patterns to mimic a decoding signal.",
+    "reduced_motion": "Respect 'prefers-reduced-motion'. Use standard fade-ins if motion is reduced."
+  },
+  "accessibility": {
+    "focus": "focus-visible:ring-2 focus-visible:ring-[#A8D8D0] focus-visible:outline-none.",
+    "contrast": "Ensure text-[#3D3A4A] on bg-[#FAF7FB] or bg-[#A8D8D0] meets at least AA standard.",
+    "aria": "Use aria-expanded for the citation side panel. Add data-testid attributes to all interactive elements."
+  },
+  "media": {
+    "icons": "Use 'lucide-react'. Stroke width 1.5 for a delicate, refined look matching the pastel aesthetic.",
+    "avatar": "Rounded-full w-8 h-8 object-cover border border-[#3D3A4A]/10."
+  },
+  "3d_libraries": {
+    "recommendation": "Not required. Focus on pristine 2D layout, typography, and micro-interactions for the citation panel. SVGs should be used for the dot-dash visualizations."
+  },
+  "image_urls": {
+    "user_avatar": {
+      "url": "https://images.unsplash.com/photo-1527980965255-d3b416303d12?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzV8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBzbWlsaW5nJTIwdXNlciUyMGF2YXRhcnxlbnwwfHx8fDE3ODc1MTMwOTJ8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Professional smiling user avatar for the chat UI."
+    },
+    "abstract_pastel_pattern": {
+      "url": "https://images.pexels.com/photos/27301941/pexels-photo-27301941.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Abstract soft pastel pattern, can be used lightly as a background texture for the empty states or loading screens."
+    }
+  },
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "Use .js and .jsx extensions for all React components. Do not use .tsx or .ts.",
+    "Do not center align the app container. No '.App { text-align: center; }' in the CSS.",
+    "Prioritize optical alignment over geometric alignment.",
+    "Ensure all interactive elements have data-testid attributes in kebab-case format (e.g., 'upload-file-button').",
+    "Never use pure black (#000000). Use the specified text_primary color (#3D3A4A).",
+    "Never use a transparent background over an image or scrolling content. Use glassmorphism or solid backgrounds.",
+    "Do not use generic 'Inter' for headers. Apply the 'Fraunces' font for headers to add character.",
+    "Implement the 3-pane layout natively with CSS flex/grid. Avoid using heavy grid component wrappers if they restrict layout freedom.",
+    "Use 'sonner' for toast notifications, maintaining the app's soft pastel theme for toast backgrounds.",
+    "For the 'Generate Brief' and 'Feedback' sections, apply the primary surface color #F0E9F5 with rounded-xl corners.",
+    "Include subtle micro-animations for hover states and button presses (e.g., active:scale-[0.98])."
+  ]
+}
