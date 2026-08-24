@@ -86,8 +86,8 @@ export default function CenterPane({
       data-testid="center-pane"
     >
       <div className="px-6 py-5 flex items-center gap-2">
-        <span className="text-[11px] font-mono uppercase tracking-[0.14em] text-[rgba(61,58,74,0.55)]">
-          Signal
+        <span className="text-[11px] font-mono uppercase tracking-[0.18em] text-[rgba(61,58,74,0.55)]">
+          Chat with your file
         </span>
       </div>
 
@@ -109,7 +109,7 @@ export default function CenterPane({
 
         {hasFiles && !brief && (
           <div className="rounded-2xl bg-[#F0E9F5]/70 px-5 py-4 text-[13.5px] text-[#3D3A4A]/80 max-w-[520px]">
-            Sources loaded. Click <span className="font-medium">Generate Brief</span> to decode.
+            Upload file and Click <span className="font-medium">Generate Brief</span> to start chatting.
           </div>
         )}
 

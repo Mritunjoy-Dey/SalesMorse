@@ -34,13 +34,12 @@ export default function App() {
   const [bootstrapped, setBootstrapped] = useState(false);
   const [previewFile, setPreviewFile] = useState(null);
 
-  // On mount: init session and load demo data if empty
+  // On mount: init session with no files (empty state by default)
   useEffect(() => {
     (async () => {
       try {
-        const data = await api.initSession(sessionId, true);
+        const data = await api.initSession(sessionId, false);
         setFiles(data.files || []);
-        setAccount("Brightline Analytics");
       } catch (e) {
         toast.error("Could not initialize session.");
       } finally {
@@ -205,28 +204,8 @@ export default function App() {
 
   return (
     <div className="h-screen w-screen flex flex-col bg-[#FAF7FB] text-[#3D3A4A]">
-      {/* Top bar */}
-      <header className="h-14 px-6 flex items-center gap-3 border-b border-[rgba(61,58,74,0.08)] bg-[#FAF7FB]/95 backdrop-blur-sm z-30 relative">
-        <div className="flex items-center gap-3">
-          <MorseGlyph />
-          <div className="flex items-baseline gap-2">
-            <span className="font-display text-[19px] leading-none tracking-tight" data-testid="app-wordmark">
-              Sales Morse
-            </span>
-            <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[rgba(61,58,74,0.5)]">
-              Decode the account
-            </span>
-          </div>
-        </div>
-        <div className="ml-auto flex items-center gap-3">
-          <span className="hidden sm:inline font-mono text-[10.5px] uppercase tracking-[0.14em] text-[rgba(61,58,74,0.5)]">
-            Session · {sessionId.slice(0, 12)}
-          </span>
-        </div>
-      </header>
-
       {/* 3-pane workspace */}
-      <main className="flex-1 grid grid-cols-1 md:grid-cols-[300px_1fr_1.35fr] min-h-0">
+      <main className="flex-1 grid grid-cols-1 md:grid-cols-[360px_1fr_1.35fr] min-h-0">
         <LeftPane
           files={files}
           onUpload={handleUpload}
@@ -292,7 +271,6 @@ export default function App() {
             </div>
           </div>
         </div>
-      )}
-    </div>
+      )}    </div>
   );
 }

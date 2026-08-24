@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Upload, FileText, Mail, Phone, File as FileIcon, X, Sparkles, Download, Radio } from "lucide-react";
+import { Upload, FileText, Mail, Phone, File as FileIcon, X, Sparkles, Download, ArrowUp } from "lucide-react";
 import { SOURCE_DOT_COLOR, DotDash } from "./MorseBits";
 import { toast } from "sonner";
 import { api } from "../lib/api";
 
 const iconFor = (type) => {
-  const p = { size: 14, strokeWidth: 1.6 };
+  const p = { size: 13, strokeWidth: 1.7 };
   if (type === "crm") return <FileText {...p} />;
   if (type === "email") return <Mail {...p} />;
   if (type === "transcript") return <Phone {...p} />;
@@ -23,6 +23,28 @@ function timeAgo(iso) {
   } catch {
     return "";
   }
+}
+
+function BrandHeader() {
+  return (
+    <div className="pt-6 pb-4 px-6 border-b border-[rgba(61,58,74,0.08)]">
+      <div className="flex items-center gap-2 mb-1">
+        <span aria-hidden className="inline-flex items-center gap-[3px]">
+          <span className="block w-2 h-[3px] rounded bg-[#3D3A4A]" />
+          <span className="block w-2 h-[3px] rounded bg-[#3D3A4A]" />
+          <span className="block w-2 h-[3px] rounded bg-[#3D3A4A]" />
+          <span className="block w-3 h-[3px] rounded bg-[#3D3A4A]" />
+          <span className="block w-3 h-[3px] rounded bg-[#3D3A4A]" />
+        </span>
+        <h1 className="font-display text-[22px] leading-none tracking-tight text-[#3D3A4A]" data-testid="app-wordmark">
+          Sales Morse
+        </h1>
+      </div>
+      <div className="mt-2 font-mono text-[10.5px] uppercase tracking-[0.18em] text-[rgba(61,58,74,0.55)]">
+        Decode the account
+      </div>
+    </div>
+  );
 }
 
 export default function LeftPane({
@@ -45,13 +67,14 @@ export default function LeftPane({
     api.listDemoAccounts().then((d) => setAccounts(d.accounts || [])).catch(() => {});
   }, []);
 
-  // For each account, decide whether it's fully loaded already
   const loadedFileIds = new Set(files.map((f) => f.id));
   const accountsWithState = accounts.map((a) => ({
     ...a,
     fully_loaded: a.file_ids.every((id) => loadedFileIds.has(id)),
   }));
-  const anyDemoAvailable = accountsWithState.some((a) => !a.fully_loaded);
+  // Hide the "Try with demo files" button as soon as ANY file is loaded (upload or demo).
+  // It reappears only when the Loaded Files list is empty again.
+  const showDemoButton = files.length === 0;
 
   const handleFiles = async (list) => {
     if (!list || list.length === 0) return;
@@ -90,12 +113,13 @@ export default function LeftPane({
       className="flex flex-col h-full border-r border-[rgba(61,58,74,0.08)] bg-[#FAF7FB]"
       data-testid="left-pane"
     >
-      <div className="p-6 pb-4 flex items-center gap-2">
-        <span className="text-[11px] font-mono uppercase tracking-[0.14em] text-[rgba(61,58,74,0.55)]">Add sources</span>
-      </div>
+      <BrandHeader />
 
-      {/* Dropzone */}
-      <div className="px-6">
+      {/* ADD SOURCES */}
+      <div className="px-6 pt-5">
+        <div className="text-[11px] font-mono uppercase tracking-[0.18em] text-[rgba(61,58,74,0.55)] mb-3">
+          Add sources
+        </div>
         <div
           role="button"
           tabIndex={0}
@@ -108,13 +132,15 @@ export default function LeftPane({
           className={
             "rounded-2xl border border-dashed p-6 text-center transition-colors cursor-pointer " +
             (dragOver
-              ? "border-[#A8D8D0] bg-[#F0E9F5]"
-              : "border-[rgba(61,58,74,0.18)] bg-[#F0E9F5]/50 hover:bg-[#F0E9F5]")
+              ? "border-[#6C63FF] bg-[#EEECFF]"
+              : "border-[rgba(108,99,255,0.35)] bg-white hover:bg-[#F5F3FF]")
           }
         >
-          <Upload size={20} strokeWidth={1.5} className="mx-auto mb-2 text-[#3D3A4A]/70" />
-          <div className="text-sm text-[#3D3A4A]">Drop files or click to browse</div>
-          <div className="mt-1 text-[11px] font-mono text-[rgba(61,58,74,0.5)]">PDF · DOCX · TXT</div>
+          <div className="mx-auto mb-3 w-9 h-9 rounded-full bg-[#EEECFF] flex items-center justify-center">
+            <ArrowUp size={16} strokeWidth={2} className="text-[#6C63FF]" />
+          </div>
+          <div className="text-[14px] text-[#3D3A4A] font-medium">Drop files or click to browse</div>
+          <div className="mt-1 text-[11px] font-mono uppercase tracking-[0.16em] text-[rgba(61,58,74,0.5)]">PDF · DOCX · TXT</div>
           <input
             ref={inputRef}
             type="file"
@@ -125,70 +151,84 @@ export default function LeftPane({
             onChange={(e) => handleFiles(e.target.files)}
           />
         </div>
-
-        {/* Try with demo files — hides once all demo accounts are loaded */}
-        {anyDemoAvailable && (
-          <div className="mt-3 relative" data-testid="demo-picker-wrap">
-            <div className="flex items-center justify-center gap-1.5 text-[12px]">
-              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[rgba(61,58,74,0.4)]">or</span>
-              <span aria-hidden className="text-[rgba(61,58,74,0.3)]">→</span>
-              <button
-                type="button"
-                data-testid="load-demo-button"
-                onClick={() => setPickerOpen((v) => !v)}
-                title="Load a demo account"
-                className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 bg-[#F0E9F5] hover:bg-[#e6ddef] text-[#3D3A4A] transition-colors active:scale-[0.98]"
-              >
-                <Radio size={11} strokeWidth={1.7} className="text-[#A8D8D0]" />
-                <span>Try with demo files</span>
-              </button>
-            </div>
-            {pickerOpen && (
-              <div
-                className="absolute left-1/2 -translate-x-1/2 mt-2 z-20 w-[260px] rounded-2xl bg-white border border-[rgba(61,58,74,0.08)] shadow-[0_16px_40px_rgba(61,58,74,0.12)] p-2"
-                data-testid="demo-account-menu"
-                onMouseLeave={() => setPickerOpen(false)}
-              >
-                {accountsWithState.map((a) => (
-                  <button
-                    key={a.id}
-                    type="button"
-                    disabled={a.fully_loaded}
-                    onClick={() => handlePickAccount(a.id)}
-                    data-testid={`demo-account-${a.id}`}
-                    className={
-                      "w-full text-left rounded-xl px-3 py-2.5 transition-colors " +
-                      (a.fully_loaded
-                        ? "opacity-50 cursor-not-allowed"
-                        : "hover:bg-[#F0E9F5] cursor-pointer")
-                    }
-                  >
-                    <div className="text-[13px] text-[#3D3A4A] font-medium flex items-center gap-2">
-                      {a.name}
-                      {a.fully_loaded && (
-                        <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-[rgba(61,58,74,0.5)]">
-                          loaded
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[11px] text-[rgba(61,58,74,0.6)] mt-0.5">{a.tagline}</div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
-      {/* Loaded files section */}
-      <div className="px-6 mt-5 flex items-center gap-2">
-        <span className="text-[11px] font-mono uppercase tracking-[0.14em] text-[rgba(61,58,74,0.55)]">Loaded files</span>
+      {/* LOADED FILES */}
+      <div className="px-6 pt-5 flex items-center gap-2">
+        <span className="text-[11px] font-mono uppercase tracking-[0.18em] text-[rgba(61,58,74,0.55)]">Loaded files</span>
         <span className="ml-auto text-[11px] font-mono text-[rgba(61,58,74,0.45)]" data-testid="loaded-files-count">
           {files.length}
         </span>
       </div>
 
-      <div className="px-6 mt-2 flex-1 overflow-y-auto sm-scroll" data-testid="file-list">
+      {/* Empty state */}
+      {files.length === 0 && (
+        <div className="px-6 pt-3">
+          <div
+            className="rounded-2xl bg-white border border-[rgba(61,58,74,0.08)] px-4 py-5 text-center"
+            data-testid="loaded-files-empty"
+          >
+            <div className="text-[13px] text-[#3D3A4A] font-medium">No files loaded</div>
+            <div className="text-[11.5px] text-[rgba(61,58,74,0.55)] mt-0.5">Upload assets or try demo data</div>
+          </div>
+        </div>
+      )}
+
+      {/* OR → Try with demo files (only when no files loaded) */}
+      {showDemoButton && (
+        <div className="px-6 pt-3 flex items-center gap-2 relative">
+          <span className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-[rgba(61,58,74,0.45)]">
+            or
+          </span>
+          <span aria-hidden className="text-[rgba(61,58,74,0.3)]">→</span>
+          <button
+            type="button"
+            data-testid="load-demo-button"
+            onClick={() => setPickerOpen((v) => !v)}
+            title="Load a demo account"
+            className="ml-auto inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 bg-[#EEECFF] hover:bg-[#E1DEFF] text-[#6C63FF] text-[12.5px] font-medium transition-colors active:scale-[0.98]"
+          >
+            <Sparkles size={13} strokeWidth={2} />
+            Try with demo files
+          </button>
+          {pickerOpen && (
+            <div
+              className="absolute right-6 top-[calc(100%+6px)] z-30 w-[260px] rounded-2xl bg-white border border-[rgba(61,58,74,0.08)] shadow-[0_16px_40px_rgba(61,58,74,0.14)] p-2"
+              data-testid="demo-account-menu"
+              onMouseLeave={() => setPickerOpen(false)}
+            >
+              {accountsWithState.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  disabled={a.fully_loaded}
+                  onClick={() => handlePickAccount(a.id)}
+                  data-testid={`demo-account-${a.id}`}
+                  className={
+                    "w-full text-left rounded-xl px-3 py-2.5 transition-colors " +
+                    (a.fully_loaded
+                      ? "opacity-50 cursor-not-allowed"
+                      : "hover:bg-[#F5F3FF] cursor-pointer")
+                  }
+                >
+                  <div className="text-[13px] text-[#3D3A4A] font-medium flex items-center gap-2">
+                    {a.name}
+                    {a.fully_loaded && (
+                      <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-[rgba(61,58,74,0.5)]">
+                        loaded
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-[rgba(61,58,74,0.6)] mt-0.5">{a.tagline}</div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* File list */}
+      <div className="px-6 pt-3 flex-1 overflow-y-auto sm-scroll" data-testid="file-list">
         <div className="flex flex-col gap-2">
           {files.map((f) => (
             <div
@@ -197,73 +237,73 @@ export default function LeftPane({
               tabIndex={0}
               onClick={() => onPreview(f)}
               onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onPreview(f)}
-              className="group flex items-center gap-3 rounded-xl bg-[#F0E9F5]/70 hover:bg-[#F0E9F5] px-3 py-2.5 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A8D8D0]"
+              className="group flex items-center gap-3 rounded-2xl bg-white border border-[rgba(61,58,74,0.08)] hover:border-[rgba(108,99,255,0.30)] hover:bg-[#FBFAFF] px-3 py-2.5 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF]/40"
               data-testid={`file-item-${f.id}`}
               aria-label={`Preview ${f.filename}`}
             >
               <span
-                className="w-2.5 h-2.5 rounded-full shrink-0"
+                className="w-2 h-2 rounded-full shrink-0"
                 style={{ background: SOURCE_DOT_COLOR[f.source_type] || SOURCE_DOT_COLOR.doc }}
                 aria-hidden
               />
+              <span className="shrink-0 w-7 h-7 rounded-lg bg-[#F0E9F5] flex items-center justify-center text-[#3D3A4A]">
+                {iconFor(f.source_type)}
+              </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 text-[13px] text-[#3D3A4A] truncate">
-                  {iconFor(f.source_type)}
-                  <span className="truncate" title={f.filename}>{f.filename}</span>
-                  {f.is_demo && (
-                    <span
-                      className="shrink-0 rounded-full px-1.5 py-[1px] font-mono text-[9px] uppercase tracking-[0.14em] bg-[#A8D8D0]/40 text-[#3D3A4A]"
-                      data-testid={`demo-badge-${f.id}`}
-                    >
-                      demo
-                    </span>
-                  )}
+                  <span className="truncate font-medium" title={f.filename}>{f.filename}</span>
                 </div>
-                <div className="text-[10.5px] font-mono text-[rgba(61,58,74,0.5)] uppercase tracking-wider truncate">
+                <div className="text-[10.5px] font-mono text-[rgba(61,58,74,0.55)] uppercase tracking-[0.12em] truncate">
                   {f.source_label} · {timeAgo(f.uploaded_at)}
                 </div>
               </div>
-              <button
-                type="button"
-                data-testid={`download-file-${f.id}`}
-                onClick={(e) => { e.stopPropagation(); onDownload(f); }}
-                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-[rgba(61,58,74,0.06)]"
-                aria-label="Download file"
-                title="Download"
-              >
-                <Download size={13} strokeWidth={1.6} />
-              </button>
-              <button
-                type="button"
-                data-testid={`delete-file-${f.id}`}
-                onClick={(e) => { e.stopPropagation(); onDelete(f.id); }}
-                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-[rgba(61,58,74,0.06)]"
-                aria-label="Remove file"
-                title="Remove"
-              >
-                <X size={14} strokeWidth={1.6} />
-              </button>
+              {f.is_demo && (
+                <span
+                  className="shrink-0 rounded-md px-1 py-[1px] font-mono text-[9px] uppercase tracking-[0.14em] bg-[#F0E9F5] text-[rgba(61,58,74,0.7)]"
+                  data-testid={`demo-badge-${f.id}`}
+                >
+                  demo
+                </span>
+              )}
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
+                <button
+                  type="button"
+                  data-testid={`download-file-${f.id}`}
+                  onClick={(e) => { e.stopPropagation(); onDownload(f); }}
+                  className="p-1 rounded-md hover:bg-[rgba(61,58,74,0.06)]"
+                  aria-label="Download file"
+                  title="Download"
+                >
+                  <Download size={13} strokeWidth={1.6} />
+                </button>
+                <button
+                  type="button"
+                  data-testid={`delete-file-${f.id}`}
+                  onClick={(e) => { e.stopPropagation(); onDelete(f.id); }}
+                  className="p-1 rounded-md hover:bg-[rgba(61,58,74,0.06)]"
+                  aria-label="Remove file"
+                  title="Remove"
+                >
+                  <X size={14} strokeWidth={1.6} />
+                </button>
+              </div>
             </div>
           ))}
-          {files.length === 0 && (
-            <div className="text-[12.5px] text-[rgba(61,58,74,0.5)] px-3 py-4 text-center rounded-xl border border-dashed border-[rgba(61,58,74,0.10)]" data-testid="loaded-files-empty">
-              Nothing loaded yet. Drop a file above or try a demo.
-            </div>
-          )}
         </div>
       </div>
 
-      <div className="p-6 pt-4 border-t border-[rgba(61,58,74,0.06)]">
+      {/* Generate Brief */}
+      <div className="p-6 pt-4">
         <button
           type="button"
           data-testid="generate-brief-button"
           disabled={!canGenerate || generating}
           onClick={onGenerate}
           className={
-            "w-full rounded-full px-4 py-3 text-sm font-medium transition-all flex items-center justify-center gap-2 " +
+            "w-full rounded-full px-4 py-3.5 text-[14px] font-medium transition-all flex items-center justify-center gap-2 " +
             (canGenerate && !generating
-              ? "bg-[#3D3A4A] text-[#FAF7FB] hover:bg-[#2f2c3a] active:scale-[0.98] shadow-[0_8px_24px_rgba(61,58,74,0.15)]"
-              : "bg-[rgba(61,58,74,0.08)] text-[rgba(61,58,74,0.4)] cursor-not-allowed")
+              ? "bg-[#6C63FF] text-white hover:bg-[#5A50F0] active:scale-[0.98] shadow-[0_10px_28px_rgba(108,99,255,0.35)]"
+              : "bg-[rgba(108,99,255,0.15)] text-[rgba(61,58,74,0.4)] cursor-not-allowed")
           }
         >
           {generating ? (
@@ -273,12 +313,12 @@ export default function LeftPane({
             </>
           ) : (
             <>
-              <Sparkles size={15} strokeWidth={1.6} />
+              <Sparkles size={16} strokeWidth={1.8} />
               <span>Generate Brief</span>
             </>
           )}
         </button>
-        <p className="mt-2 text-[10.5px] font-mono text-[rgba(61,58,74,0.45)] text-center uppercase tracking-[0.12em]">
+        <p className="mt-2.5 text-[10px] font-mono text-[rgba(61,58,74,0.45)] text-center uppercase tracking-[0.18em]">
           Signal from the noise
         </p>
       </div>
