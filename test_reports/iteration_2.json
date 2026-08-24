@@ -1,0 +1,25 @@
+{
+  "summary": "Latency-sensitive smoke test of new file-management surface: append-only sources bug fix, load-demo button, DEMO badges, preview modal, per-file download. All backend and frontend checks passed.",
+  "tested_scope": ["backend", "frontend", "integration"],
+  "passed": [
+    "POST /api/session/load-demo returns 3 demo files (is_demo=true) on first call",
+    "POST /api/session/load-demo is idempotent - second call still returns 3 files (no duplicates)",
+    "POST /api/upload with existing demo session appends user file - response has 4 files (3 demo is_demo=true + 1 user is_demo=false)",
+    "POST /api/session/load-demo after upload keeps user file and does not duplicate demo files (stays 4)",
+    "DELETE /api/file/<sid>/<demo-fid> removes only that specific demo file (goes from 4 -> 3, user file preserved)",
+    "POST /api/session/load-demo after delete re-adds only missing demo file (back to 4)",
+    "GET /api/file/<sid>/<fid>/content returns id, filename, source_type, source_label, is_demo, content, uploaded_at for demo files",
+    "GET /api/file/<sid>/<fid>/download returns 200 with Content-Disposition: attachment; filename=\"brightline_crm_note.txt\" and correct bytes for both demo and user files",
+    "Frontend: 'Try with demo files' button (data-testid=load-demo-button) visible on first load AND after user upload",
+    "Frontend: 3 demo-badge-* pills render on demo file rows; user file row has no demo badge",
+    "Frontend: Clicking a file row opens file-preview-modal with file-preview-content (monospace), file-preview-download, file-preview-close; close button dismisses modal",
+    "Frontend: After uploading a user file, source count shows 4 (3 demo badges preserved + 1 user file without badge)",
+    "No console errors during frontend interaction"
+  ],
+  "failed": [],
+  "action_items": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "retest_needed": false,
+  "full_testing_deferred": true,
+  "notes": "Skipped brief generation regression per main agent instruction (slow LLM). Backdrop-click dismissal not explicitly tested (only close button); close-button path verified."
+}

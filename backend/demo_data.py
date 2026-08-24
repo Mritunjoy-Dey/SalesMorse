@@ -2,6 +2,8 @@
 
 DEMO_ACCOUNT = "Brightline Analytics"
 
+DEMO_FILE_IDS = {"demo-crm-note", "demo-email-thread", "demo-call-transcript"}
+
 DEMO_FILES = [
     {
         "id": "demo-crm-note",

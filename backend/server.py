@@ -16,13 +16,15 @@ from starlette.middleware.cors import CORSMiddleware
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
+from fastapi.responses import Response  # noqa: E402
+
 from brief_service import (  # noqa: E402
     SOURCE_TYPE_LABELS,
     answer_followup,
     build_chunks_from_files,
     generate_brief,
 )
-from demo_data import DEMO_ACCOUNT, DEMO_FILES  # noqa: E402
+from demo_data import DEMO_ACCOUNT, DEMO_FILE_IDS, DEMO_FILES  # noqa: E402
 
 mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
@@ -59,6 +61,8 @@ class FileMeta(BaseModel):
     source_type: str
     source_label: str
     uploaded_at: str
+    is_demo: bool = False
+    size: int = 0
 
 
 class UploadResponse(BaseModel):
@@ -134,7 +138,32 @@ def _file_meta(f: Dict) -> FileMeta:
         source_type=f["source_type"],
         source_label=SOURCE_TYPE_LABELS.get(f["source_type"], "Document"),
         uploaded_at=f["uploaded_at"],
+        is_demo=f["id"] in DEMO_FILE_IDS,
+        size=len(f.get("content", "") or ""),
     )
+
+
+def _append_demo_files(session: Dict) -> None:
+    """Idempotently append any missing demo files to the session."""
+    now = datetime.now(timezone.utc).isoformat()
+    existing_ids = {f["id"] for f in session["files"]}
+    added = False
+    for f in DEMO_FILES:
+        if f["id"] in existing_ids:
+            continue
+        session["files"].append(
+            {
+                "id": f["id"],
+                "filename": f["filename"],
+                "source_type": f["source_type"],
+                "content": f["content"],
+                "uploaded_at": now,
+            }
+        )
+        added = True
+    if added:
+        _refresh_chunks(session)
+        session["brief"] = None
 
 
 # ---------- Routes ----------
@@ -147,22 +176,58 @@ async def root():
 async def init_session(body: SessionInit, load_demo: bool = False):
     session = _get_session(body.session_id)
     if load_demo and not session["files"]:
-        now = datetime.now(timezone.utc).isoformat()
-        for f in DEMO_FILES:
-            session["files"].append(
-                {
-                    "id": f["id"],
-                    "filename": f["filename"],
-                    "source_type": f["source_type"],
-                    "content": f["content"],
-                    "uploaded_at": now,
-                }
-            )
-        _refresh_chunks(session)
+        _append_demo_files(session)
     return UploadResponse(
         session_id=body.session_id,
         files=[_file_meta(f) for f in session["files"]],
     )
+
+
+@api_router.post("/session/load-demo", response_model=UploadResponse)
+async def load_demo(body: SessionInit):
+    """Idempotently append demo files to the session (never removes anything)."""
+    session = _get_session(body.session_id)
+    _append_demo_files(session)
+    return UploadResponse(
+        session_id=body.session_id,
+        files=[_file_meta(f) for f in session["files"]],
+    )
+
+
+@api_router.get("/file/{session_id}/{file_id}/content")
+async def get_file_content(session_id: str, file_id: str):
+    session = _get_session(session_id)
+    for f in session["files"]:
+        if f["id"] == file_id:
+            return {
+                "id": f["id"],
+                "filename": f["filename"],
+                "source_type": f["source_type"],
+                "source_label": SOURCE_TYPE_LABELS.get(f["source_type"], "Document"),
+                "is_demo": f["id"] in DEMO_FILE_IDS,
+                "content": f["content"],
+                "uploaded_at": f["uploaded_at"],
+            }
+    raise HTTPException(404, "File not found")
+
+
+@api_router.get("/file/{session_id}/{file_id}/download")
+async def download_file(session_id: str, file_id: str):
+    session = _get_session(session_id)
+    for f in session["files"]:
+        if f["id"] == file_id:
+            filename = f["filename"]
+            # ensure .txt extension for demo/text content
+            if not any(filename.lower().endswith(ext) for ext in (".txt", ".md", ".pdf", ".docx")):
+                filename = filename + ".txt"
+            return Response(
+                content=f["content"],
+                media_type="text/plain; charset=utf-8",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{filename}"',
+                },
+            )
+    raise HTTPException(404, "File not found")
 
 
 @api_router.post("/upload", response_model=UploadResponse)

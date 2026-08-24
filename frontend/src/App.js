@@ -5,6 +5,7 @@ import LeftPane from "./components/LeftPane";
 import CenterPane from "./components/CenterPane";
 import RightPane from "./components/RightPane";
 import CitationPanel from "./components/CitationPanel";
+import FilePreviewModal from "./components/FilePreviewModal";
 import { api } from "./lib/api";
 import "./App.css";
 
@@ -31,6 +32,7 @@ export default function App() {
   const [activeChunkKey, setActiveChunkKey] = useState(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [bootstrapped, setBootstrapped] = useState(false);
+  const [previewFile, setPreviewFile] = useState(null);
 
   // On mount: init session and load demo data if empty
   useEffect(() => {
@@ -51,9 +53,41 @@ export default function App() {
   const handleUpload = useCallback(async (fileList) => {
     const data = await api.uploadFiles(sessionId, fileList);
     setFiles(data.files || []);
+    // sources changed → invalidate brief, keep sources union (backend already appends)
     setBrief(null);
     setChatLog([]);
     setPanelOpen(false);
+  }, [sessionId]);
+
+  const handleLoadDemo = useCallback(async () => {
+    try {
+      const data = await api.loadDemo(sessionId);
+      setFiles(data.files || []);
+      setAccount("Brightline Analytics");
+      toast.success("Demo files loaded");
+    } catch (e) {
+      toast.error("Could not load demo files.");
+    }
+  }, [sessionId]);
+
+  const handlePreview = useCallback(async (file) => {
+    try {
+      const data = await api.getFileContent(sessionId, file.id);
+      setPreviewFile({ ...file, content: data.content, source_label: data.source_label });
+    } catch (e) {
+      toast.error("Could not open file preview.");
+    }
+  }, [sessionId]);
+
+  const handleDownload = useCallback((file) => {
+    const url = api.downloadUrl(sessionId, file.id);
+    const a = document.createElement("a");
+    a.href = url;
+    a.rel = "noopener";
+    a.download = file.filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }, [sessionId]);
 
   const handleDelete = useCallback(async (fileId) => {
@@ -145,6 +179,9 @@ export default function App() {
           onUpload={handleUpload}
           onDelete={handleDelete}
           onGenerate={handleGenerate}
+          onLoadDemo={handleLoadDemo}
+          onPreview={handlePreview}
+          onDownload={handleDownload}
           generating={generating}
           canGenerate={hasFiles}
         />
@@ -181,6 +218,13 @@ export default function App() {
         toastOptions={{
           style: { background: "#FAF7FB", color: "#3D3A4A", border: "1px solid rgba(61,58,74,0.1)", borderRadius: "14px", fontFamily: "'Figtree', sans-serif" },
         }}
+      />
+
+      <FilePreviewModal
+        open={!!previewFile}
+        file={previewFile}
+        onClose={() => setPreviewFile(null)}
+        onDownload={handleDownload}
       />
 
       {!bootstrapped && (

@@ -11,6 +11,9 @@ export const api = {
       .post(`/session/init?load_demo=${loadDemo}`, { session_id: sessionId })
       .then((r) => r.data),
 
+  loadDemo: (sessionId) =>
+    client.post(`/session/load-demo`, { session_id: sessionId }).then((r) => r.data),
+
   uploadFiles: (sessionId, files) => {
     const fd = new FormData();
     Array.from(files).forEach((f) => fd.append("files", f));
@@ -23,6 +26,12 @@ export const api = {
 
   deleteFile: (sessionId, fileId) =>
     client.delete(`/file/${sessionId}/${fileId}`).then((r) => r.data),
+
+  getFileContent: (sessionId, fileId) =>
+    client.get(`/file/${sessionId}/${fileId}/content`).then((r) => r.data),
+
+  downloadUrl: (sessionId, fileId) =>
+    `${API}/file/${encodeURIComponent(sessionId)}/${encodeURIComponent(fileId)}/download`,
 
   generateBrief: (sessionId) =>
     client.post(`/brief/generate`, { session_id: sessionId }).then((r) => r.data),
