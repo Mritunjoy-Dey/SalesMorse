@@ -202,6 +202,71 @@ def _extract_json(raw: str) -> Optional[dict]:
     return None
 
 
+SECTION_SPECS = [
+    ("solution_fit", "SOLUTION FIT",
+     "Where our product addresses this prospect's pain. Flag as strong/uncertain/unsupported."),
+    ("account_snapshot", "ACCOUNT SNAPSHOT",
+     "Deal stage, last interaction, urgency signals, stakeholder roles (economic buyer, champion, influencer, blocker) where sources support it."),
+    ("intent_signals", "INTENT SIGNALS",
+     "Budget, objections, timeline, blockers. If sources conflict, show BOTH sides with flag='contradiction' and lower confidence. Never silently resolve."),
+    ("commitments", "COMMITMENTS & OPEN QUESTIONS",
+     "Agreed actions and unresolved items."),
+    ("competitive", "COMPETITIVE & INDUSTRY CONTEXT",
+     "Competitors mentioned, trigger events, relevant pressures."),
+]
+
+
+SECTION_SYSTEM_PROMPT = """You are Sales Morse. Generate exactly ONE section of a Sales Brief from the provided source chunks.
+
+CRITICAL RULES:
+- Never fabricate. Every insight cites specific chunk_ids from the provided chunks.
+- Preserve qualifiers verbatim ("maybe", "possibly", "pending"). Never state hedged claims as fact.
+- If sources contradict, emit TWO parallel insights each citing their own chunk_ids, both with flag="contradiction". Lower section_confidence when contradictions exist.
+- If the section cannot be supported by the sources, return status="unsupported", section_confidence<=0.3, and one insight with text like "Insufficient source coverage for X." and flag="insufficient".
+- Direct, honest tone. No filler.
+
+Return ONE JSON object only (no prose, no markdown fences):
+{
+  "id": "<section_id>",
+  "title": "<SECTION TITLE>",
+  "status": "strong" | "uncertain" | "unsupported",
+  "section_confidence": 0.0-1.0,
+  "insights": [
+    {"text": "one sentence", "chunk_ids": ["..."], "confidence": 0.0-1.0, "flag": null | "contradiction" | "qualifier" | "insufficient"}
+  ]
+}
+Confidence heuristic: 0.85+ if directly stated; 0.6-0.8 if inferred but supported; 0.4-0.6 if qualified in source; below 0.5 if contradicted.
+"""
+
+
+async def generate_section(section_id: str, title: str, purpose: str, chunks: List[Dict]) -> Dict:
+    context = _format_chunks_for_prompt(chunks)
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=f"sec-{section_id}-{uuid.uuid4()}",
+        system_message=SECTION_SYSTEM_PROMPT,
+    ).with_model(MODEL_PROVIDER, MODEL_NAME)
+    user_text = (
+        f"Section id: {section_id}\nTitle: {title}\nPurpose: {purpose}\n\n"
+        f"Source chunks:\n\n{context}\n\nReturn ONLY the JSON object."
+    )
+    response = await chat.send_message(UserMessage(text=user_text))
+    parsed = _extract_json(response) or {
+        "id": section_id,
+        "title": title,
+        "status": "unsupported",
+        "section_confidence": 0.0,
+        "insights": [{"text": "Model returned an unparseable response.", "chunk_ids": [], "confidence": 0.0, "flag": "insufficient"}],
+    }
+    # ensure required keys
+    parsed.setdefault("id", section_id)
+    parsed.setdefault("title", title)
+    parsed.setdefault("status", "uncertain")
+    parsed.setdefault("section_confidence", 0.5)
+    parsed.setdefault("insights", [])
+    return parsed
+
+
 async def generate_brief(chunks: List[Dict]) -> Dict:
     """Call LLM to generate the structured brief."""
     if not chunks:

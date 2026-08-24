@@ -1,7 +1,8 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Upload, FileText, Mail, Phone, File as FileIcon, X, Sparkles, Download, Radio } from "lucide-react";
 import { SOURCE_DOT_COLOR, DotDash } from "./MorseBits";
 import { toast } from "sonner";
+import { api } from "../lib/api";
 
 const iconFor = (type) => {
   const p = { size: 14, strokeWidth: 1.6 };
@@ -37,6 +38,20 @@ export default function LeftPane({
 }) {
   const inputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
+  const [accounts, setAccounts] = useState([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  useEffect(() => {
+    api.listDemoAccounts().then((d) => setAccounts(d.accounts || [])).catch(() => {});
+  }, []);
+
+  // For each account, decide whether it's fully loaded already
+  const loadedFileIds = new Set(files.map((f) => f.id));
+  const accountsWithState = accounts.map((a) => ({
+    ...a,
+    fully_loaded: a.file_ids.every((id) => loadedFileIds.has(id)),
+  }));
+  const anyDemoAvailable = accountsWithState.some((a) => !a.fully_loaded);
 
   const handleFiles = async (list) => {
     if (!list || list.length === 0) return;
@@ -65,16 +80,21 @@ export default function LeftPane({
     handleFiles(e.dataTransfer.files);
   };
 
+  const handlePickAccount = async (accountId) => {
+    setPickerOpen(false);
+    await onLoadDemo(accountId);
+  };
+
   return (
     <aside
       className="flex flex-col h-full border-r border-[rgba(61,58,74,0.08)] bg-[#FAF7FB]"
       data-testid="left-pane"
     >
       <div className="p-6 pb-4 flex items-center gap-2">
-        <span className="text-[11px] font-mono uppercase tracking-[0.14em] text-[rgba(61,58,74,0.55)]">Sources</span>
-        <span className="ml-auto text-[11px] font-mono text-[rgba(61,58,74,0.45)]">{files.length}</span>
+        <span className="text-[11px] font-mono uppercase tracking-[0.14em] text-[rgba(61,58,74,0.55)]">Add sources</span>
       </div>
 
+      {/* Dropzone */}
       <div className="px-6">
         <div
           role="button"
@@ -106,24 +126,69 @@ export default function LeftPane({
           />
         </div>
 
-        {/* Try with demo files */}
-        <div className="mt-3 flex items-center justify-center gap-1.5 text-[12px] text-[rgba(61,58,74,0.6)]">
-          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[rgba(61,58,74,0.4)]">or</span>
-          <span aria-hidden className="text-[rgba(61,58,74,0.3)]">→</span>
-          <button
-            type="button"
-            data-testid="load-demo-button"
-            onClick={onLoadDemo}
-            title="Load Brightline Analytics demo sources"
-            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 bg-[#F0E9F5] hover:bg-[#e6ddef] text-[#3D3A4A] transition-colors active:scale-[0.98]"
-          >
-            <Radio size={11} strokeWidth={1.7} className="text-[#A8D8D0]" />
-            <span>Try with demo files</span>
-          </button>
-        </div>
+        {/* Try with demo files — hides once all demo accounts are loaded */}
+        {anyDemoAvailable && (
+          <div className="mt-3 relative" data-testid="demo-picker-wrap">
+            <div className="flex items-center justify-center gap-1.5 text-[12px]">
+              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[rgba(61,58,74,0.4)]">or</span>
+              <span aria-hidden className="text-[rgba(61,58,74,0.3)]">→</span>
+              <button
+                type="button"
+                data-testid="load-demo-button"
+                onClick={() => setPickerOpen((v) => !v)}
+                title="Load a demo account"
+                className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 bg-[#F0E9F5] hover:bg-[#e6ddef] text-[#3D3A4A] transition-colors active:scale-[0.98]"
+              >
+                <Radio size={11} strokeWidth={1.7} className="text-[#A8D8D0]" />
+                <span>Try with demo files</span>
+              </button>
+            </div>
+            {pickerOpen && (
+              <div
+                className="absolute left-1/2 -translate-x-1/2 mt-2 z-20 w-[260px] rounded-2xl bg-white border border-[rgba(61,58,74,0.08)] shadow-[0_16px_40px_rgba(61,58,74,0.12)] p-2"
+                data-testid="demo-account-menu"
+                onMouseLeave={() => setPickerOpen(false)}
+              >
+                {accountsWithState.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    disabled={a.fully_loaded}
+                    onClick={() => handlePickAccount(a.id)}
+                    data-testid={`demo-account-${a.id}`}
+                    className={
+                      "w-full text-left rounded-xl px-3 py-2.5 transition-colors " +
+                      (a.fully_loaded
+                        ? "opacity-50 cursor-not-allowed"
+                        : "hover:bg-[#F0E9F5] cursor-pointer")
+                    }
+                  >
+                    <div className="text-[13px] text-[#3D3A4A] font-medium flex items-center gap-2">
+                      {a.name}
+                      {a.fully_loaded && (
+                        <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-[rgba(61,58,74,0.5)]">
+                          loaded
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-[rgba(61,58,74,0.6)] mt-0.5">{a.tagline}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="px-6 mt-4 flex-1 overflow-y-auto sm-scroll" data-testid="file-list">
+      {/* Loaded files section */}
+      <div className="px-6 mt-5 flex items-center gap-2">
+        <span className="text-[11px] font-mono uppercase tracking-[0.14em] text-[rgba(61,58,74,0.55)]">Loaded files</span>
+        <span className="ml-auto text-[11px] font-mono text-[rgba(61,58,74,0.45)]" data-testid="loaded-files-count">
+          {files.length}
+        </span>
+      </div>
+
+      <div className="px-6 mt-2 flex-1 overflow-y-auto sm-scroll" data-testid="file-list">
         <div className="flex flex-col gap-2">
           {files.map((f) => (
             <div
@@ -181,8 +246,8 @@ export default function LeftPane({
             </div>
           ))}
           {files.length === 0 && (
-            <div className="text-[12.5px] text-[rgba(61,58,74,0.5)] px-1 py-4 text-center">
-              No sources yet.
+            <div className="text-[12.5px] text-[rgba(61,58,74,0.5)] px-3 py-4 text-center rounded-xl border border-dashed border-[rgba(61,58,74,0.10)]" data-testid="loaded-files-empty">
+              Nothing loaded yet. Drop a file above or try a demo.
             </div>
           )}
         </div>

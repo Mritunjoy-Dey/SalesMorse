@@ -11,8 +11,15 @@ export const api = {
       .post(`/session/init?load_demo=${loadDemo}`, { session_id: sessionId })
       .then((r) => r.data),
 
-  loadDemo: (sessionId) =>
-    client.post(`/session/load-demo`, { session_id: sessionId }).then((r) => r.data),
+  loadDemo: (sessionId, accountId = "brightline") =>
+    client
+      .post(`/session/load-demo?account_id=${encodeURIComponent(accountId)}`, { session_id: sessionId })
+      .then((r) => r.data),
+
+  listDemoAccounts: () => client.get(`/demo-accounts`).then((r) => r.data),
+
+  streamBriefUrl: (sessionId) =>
+    `${API}/brief/stream?session_id=${encodeURIComponent(sessionId)}`,
 
   uploadFiles: (sessionId, files) => {
     const fd = new FormData();

@@ -59,12 +59,14 @@ export default function App() {
     setPanelOpen(false);
   }, [sessionId]);
 
-  const handleLoadDemo = useCallback(async () => {
+  const handleLoadDemo = useCallback(async (accountId = "brightline") => {
     try {
-      const data = await api.loadDemo(sessionId);
+      const data = await api.loadDemo(sessionId, accountId);
       setFiles(data.files || []);
-      setAccount("Brightline Analytics");
-      toast.success("Demo files loaded");
+      // Set account name from data if possible; otherwise pretty-print id
+      const acctPretty = { brightline: "Brightline Analytics", nimbus: "Nimbus DevOps", zenith: "Zenith Retail" };
+      setAccount(acctPretty[accountId] || acctPretty.brightline);
+      toast.success(`${acctPretty[accountId] || "Demo"} loaded`);
     } catch (e) {
       toast.error("Could not load demo files.");
     }
@@ -103,18 +105,69 @@ export default function App() {
     if (files.length === 0) return;
     setGenerating(true);
     setPanelOpen(false);
+    setBrief({ overall_confidence: 0, sections: [] }); // prime for streaming render
     try {
-      const data = await api.generateBrief(sessionId);
-      setBrief(data.brief);
-      setChunks(data.chunks || []);
-      if (data.account) setAccount(data.account);
+      const url = api.streamBriefUrl(sessionId);
+      const resp = await fetch(url, { method: "GET" });
+      if (!resp.ok || !resp.body) throw new Error(`HTTP ${resp.status}`);
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        // parse SSE frames
+        let idx;
+        while ((idx = buffer.indexOf("\n\n")) !== -1) {
+          const frame = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 2);
+          const lines = frame.split("\n");
+          let event = "message";
+          let data = "";
+          for (const ln of lines) {
+            if (ln.startsWith("event:")) event = ln.slice(6).trim();
+            else if (ln.startsWith("data:")) data += ln.slice(5).trim();
+          }
+          if (!data) continue;
+          try {
+            const payload = JSON.parse(data);
+            if (event === "meta") {
+              setChunks(payload.chunks || []);
+              if (payload.account) setAccount(payload.account);
+            } else if (event === "section") {
+              setBrief((prev) => {
+                const secs = prev?.sections || [];
+                // dedupe on id
+                const withoutSame = secs.filter((s) => s.id !== payload.id);
+                const merged = [...withoutSame, payload];
+                const confs = merged.map((s) => s.section_confidence || 0);
+                const overall = confs.reduce((a, b) => a + b, 0) / confs.length;
+                return { overall_confidence: overall, sections: merged };
+              });
+            } else if (event === "done") {
+              setBrief((prev) => prev ? { ...prev, overall_confidence: payload.overall_confidence ?? prev.overall_confidence } : prev);
+            }
+          } catch { /* skip malformed */ }
+        }
+      }
       toast.success("Brief decoded");
     } catch (e) {
-      toast.error("Brief generation failed. " + (e?.response?.data?.detail || e.message || ""));
+      toast.error("Brief generation failed. " + (e?.message || ""));
+      setBrief(null);
     } finally {
       setGenerating(false);
     }
   }, [files.length, sessionId]);
+
+  const handleExportPdf = useCallback(() => {
+    // Close citation panel so it doesn't overlap the print viewport / export button
+    setPanelOpen(false);
+    setActiveChunkKey(null);
+    // Small delay so React commits the panel-close before print snapshot
+    setTimeout(() => window.print(), 50);
+  }, []);
 
   const handleSend = useCallback(async (question) => {
     setChatLog((prev) => [...prev, { role: "user", text: question }]);
@@ -202,6 +255,9 @@ export default function App() {
             activeChunkKey={activeChunkKey}
             onFeedback={handleFeedback}
             account={account}
+            streaming={generating}
+            chunks={chunks}
+            onExportPdf={handleExportPdf}
           />
           <CitationPanel
             open={panelOpen}

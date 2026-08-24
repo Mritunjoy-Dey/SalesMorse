@@ -16,7 +16,7 @@ from starlette.middleware.cors import CORSMiddleware
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
-from fastapi.responses import Response  # noqa: E402
+from fastapi.responses import Response, StreamingResponse  # noqa: E402
 
 from brief_service import (  # noqa: E402
     SOURCE_TYPE_LABELS,
@@ -24,7 +24,14 @@ from brief_service import (  # noqa: E402
     build_chunks_from_files,
     generate_brief,
 )
-from demo_data import DEMO_ACCOUNT, DEMO_FILE_IDS, DEMO_FILES  # noqa: E402
+from demo_data import (  # noqa: E402
+    DEFAULT_ACCOUNT_ID,
+    DEMO_ACCOUNT,
+    DEMO_ACCOUNTS,
+    DEMO_FILE_IDS,
+    DEMO_FILES,
+    account_files_by_id,
+)
 
 mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
@@ -143,12 +150,13 @@ def _file_meta(f: Dict) -> FileMeta:
     )
 
 
-def _append_demo_files(session: Dict) -> None:
-    """Idempotently append any missing demo files to the session."""
+def _append_demo_files(session: Dict, account_id: str = DEFAULT_ACCOUNT_ID) -> None:
+    """Idempotently append missing demo files for the given account."""
     now = datetime.now(timezone.utc).isoformat()
     existing_ids = {f["id"] for f in session["files"]}
+    files, account_name = account_files_by_id(account_id)
     added = False
-    for f in DEMO_FILES:
+    for f in files:
         if f["id"] in existing_ids:
             continue
         session["files"].append(
@@ -158,6 +166,8 @@ def _append_demo_files(session: Dict) -> None:
                 "source_type": f["source_type"],
                 "content": f["content"],
                 "uploaded_at": now,
+                "demo_account_id": account_id,
+                "demo_account_name": account_name,
             }
         )
         added = True
@@ -184,14 +194,29 @@ async def init_session(body: SessionInit, load_demo: bool = False):
 
 
 @api_router.post("/session/load-demo", response_model=UploadResponse)
-async def load_demo(body: SessionInit):
-    """Idempotently append demo files to the session (never removes anything)."""
+async def load_demo(body: SessionInit, account_id: str = DEFAULT_ACCOUNT_ID):
+    """Idempotently append demo files for the chosen account. Never removes anything."""
     session = _get_session(body.session_id)
-    _append_demo_files(session)
+    _append_demo_files(session, account_id)
     return UploadResponse(
         session_id=body.session_id,
         files=[_file_meta(f) for f in session["files"]],
     )
+
+
+@api_router.get("/demo-accounts")
+async def list_demo_accounts():
+    return {
+        "accounts": [
+            {
+                "id": a["id"],
+                "name": a["name"],
+                "tagline": a["tagline"],
+                "file_ids": [f["id"] for f in a["files"]],
+            }
+            for a in DEMO_ACCOUNTS.values()
+        ]
+    }
 
 
 @api_router.get("/file/{session_id}/{file_id}/content")
@@ -282,8 +307,68 @@ async def brief_generate(body: GenerateBriefRequest):
         "brief": brief,
         "chunks": session["chunks"],
         "files": [_file_meta(f) for f in session["files"]],
-        "account": DEMO_ACCOUNT if any(f["id"].startswith("demo-") for f in session["files"]) else None,
+        "account": _detect_account(session),
     }
+
+
+def _detect_account(session: Dict) -> Optional[str]:
+    for f in session["files"]:
+        if f.get("demo_account_name"):
+            return f["demo_account_name"]
+    return None
+
+
+@api_router.get("/brief/stream")
+async def brief_stream(session_id: str):
+    """SSE endpoint that generates 5 sections in parallel and emits each as it completes."""
+    import asyncio
+    import json as _json
+
+    session = _get_session(session_id)
+    if not session["chunks"]:
+        raise HTTPException(400, "No sources uploaded yet.")
+    chunks = session["chunks"]
+
+    async def gen():
+        # meta first
+        yield f"event: meta\ndata: {_json.dumps({'chunks': chunks, 'files': [_file_meta(f).model_dump() for f in session['files']], 'account': _detect_account(session)})}\n\n"
+
+        # kick off all sections in parallel; wrap each so it retains its section id on error
+        from brief_service import SECTION_SPECS, generate_section  # local import
+
+        async def _run_section(sid, title, purpose):
+            try:
+                return await generate_section(sid, title, purpose, chunks)
+            except Exception as e:
+                return {
+                    "id": sid,
+                    "title": title,
+                    "status": "unsupported",
+                    "section_confidence": 0.0,
+                    "insights": [{"text": f"Section failed: {e}", "chunk_ids": [], "confidence": 0.0, "flag": "insufficient"}],
+                }
+
+        tasks = [asyncio.create_task(_run_section(sid, title, purpose)) for sid, title, purpose in SECTION_SPECS]
+        collected = []
+        # emit as each completes
+        for coro in asyncio.as_completed(tasks):
+            section = await coro
+            collected.append(section)
+            yield f"event: section\ndata: {_json.dumps(section)}\n\n"
+
+        # compute overall confidence as mean of section confidences
+        confs = [s.get("section_confidence", 0.0) for s in collected]
+        overall = sum(confs) / max(len(confs), 1)
+        brief = {"overall_confidence": overall, "sections": collected}
+        # persist
+        session["brief"] = brief
+        yield f"event: done\ndata: {_json.dumps({'overall_confidence': overall})}\n\n"
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
+    )
 
 
 @api_router.get("/brief/{session_id}")

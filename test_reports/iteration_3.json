@@ -1,0 +1,38 @@
+{
+  "summary": "Iteration 3 full-stack test of Sales Morse (SSE streaming brief, multi-account demo picker, contradiction digest, PDF export). Backend: 21/21 pytest tests pass (demo-accounts, append-only load-demo idempotency, delete+reload, upload regression, SSE event sequence/payload validation, incremental delivery timing, chunk-id grounding, brief persistence, chat/feedback). Frontend: all 9 requested UI flows verified on the public URL — auto-load brightline (3 files, DEMO badges), demo picker with 3 accounts (brightline disabled/loaded), nimbus append -> 6 files with button still visible, zenith -> 9 files and load-demo-button removed from DOM, user upload does not bring it back, deleting a demo file brings it back and re-adds only the missing file, streaming shows DECODING n/5 + [SECTION] placeholders with Export PDF hidden during stream and visible after, contradiction-digest with 6 items, contradiction-item click opens citation-panel with correct source chunks, export-pdf-button calls window.print (verified with mocked print). One real UI defect found: the citation panel overlay blocks the Export PDF button while open.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/brief/stream", "issue": "Backend correctly sets X-Accel-Buffering: no (verified at origin :8001) but the preview CDN/ingress strips it from the public response. Streaming still arrives incrementally (verified: 5 section events spread over time), so this is infra-only, no code change needed."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CitationPanel / RightPane", "issue": "When the citation panel is open (e.g. after clicking a contradiction-digest item) the fixed 400px z-40 panel covers the top-right of the brief and intercepts pointer events on the Export PDF button — Playwright click times out with 'subtree intercepts pointer events'. Users must close the panel before exporting. Suggest moving export-pdf-button out of the overlapped region or raising its z-index / shifting the brief container when the panel is open.", "selector": "[data-testid=\"export-pdf-button\"] vs [data-testid=\"citation-panel\"]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Left pane / Loaded Files", "issues": ["Filenames truncate very early in the 300px pane (e.g. 'brightline_cr…', 'priya_budg…') so multiple demo files are hard to tell apart; the metadata line also truncates the time ('CALL TRANSCRIPT · _'). Consider wider pane, smaller font, or middle-ellipsis with extension preserved."]},
+      {"screen": "Brief header (mixed demo accounts)", "issues": ["Loading a second demo account sets the header/account label to the newly picked account (toast 'Nimbus DevOps loaded'), but the streamed brief's meta.account resolves to the FIRST demo file's account (Brightline Analytics), so the title can disagree with the last-loaded account. Minor labeling inconsistency when multiple accounts are loaded together."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Fix Export PDF button being blocked by the citation panel overlay (close panel on export, or reposition/z-index the export button).",
+    "Optional: improve filename truncation in Loaded Files list.",
+    "Optional: reconcile header account label when multiple demo accounts are loaded."
+  ],
+  "critical_code_review_comments": [
+    "server.py brief_stream: if a generate_section task raises, the fallback section is emitted with id='unknown' — the frontend keys sections by id, so a failure silently drops the real section (placeholder stays forever). Bind the section id into the fallback (as_completed loses the task->sid mapping; use asyncio.gather(..., return_exceptions=True) with an ordered wrapper or wrap each coroutine so it returns its own id on error).",
+    "server.py: SESSIONS is an in-process dict — correct for the stated in-session scope, but any multi-worker/uvicorn reload will lose state; keep single worker.",
+    "brief_service.generate_section sends ALL chunks to every section prompt (5x full context per generate). With 9 demo files the prompt grows quickly; consider retrieve_top_k per section to cut token cost/latency.",
+    "brief_stream declares imports (asyncio/json/brief_service) inside the handler; move to module scope for clarity."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "100% (21/21)", "frontend": "95% (all requested flows pass; 1 overlay defect)"},
+  "seed_data_creation": "Ephemeral in-memory sessions prefixed TEST-sess-*; one uploaded TEST_user_note.txt / TEST_user_notes.txt per session. No persistent DB writes.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend suite lives at /app/backend/tests/backend_test.py (pytest.ini already runs -n 2 --dist loadscope; use -n 0 for serial). SSE consumption helper _consume_sse parses event frames; streaming completes in ~10-14s for 3 brightline files. X-Accel-Buffering is stripped by the public CDN — assert only content-type externally. Citation panel close testid is 'citation-close' (not citation-panel-close). Known open defect: citation panel overlays export-pdf-button.",
+  "rca_of_the_issue": "Export PDF click failure RCA: RightPane places export-pdf-button at the top-right of the brief container, while CitationPanel renders as position:fixed inset-y-0 right-0 w-[400px] z-40 in the same right column. When open, the panel's bounding box (x=1520..1920) overlaps the button box (x≈1679..1791, y≈104) so pointer events are intercepted. Closing the panel (citation-close) restores the click and window.print fires exactly once (verified with mocked window.print)."
+}

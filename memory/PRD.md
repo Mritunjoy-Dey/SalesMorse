@@ -34,21 +34,28 @@ Build "Sales Morse" — an AI-powered sales meeting prep tool. Sales reps upload
 - Out-of-scope requests politely refused.
 - Overall + section confidence rendered as dot-dash Morse pattern.
 
+## What's been implemented (2026-02-24)
+- **Streaming decode**: `/api/brief/stream` (SSE) generates 5 sections in parallel (`asyncio.as_completed`) and emits `meta`, `section`, `done` events. Frontend uses fetch reader + SSE frame parser to render each section as it arrives; unarrived sections show pulsing morse-skeleton placeholders. Sections are guaranteed to keep their id on failure.
+- **Contradiction Digest**: top-of-brief callout collects every insight with `flag='contradiction'` across all sections; each item is clickable and opens the citation panel with its source chunk.
+- **Brief Export (PDF)**: `Export PDF` button in brief header calls `window.print()`, closing the citation panel first (z-index + auto-close). Dedicated `@media print` stylesheet in `index.css` keeps citation highlights, adds inline `[chunk_id]` footnotes on every cited insight, and appends a source chunk appendix.
+- **Three demo accounts**: Brightline Analytics (default), Nimbus DevOps (technical eval / SSO SOC2 gate), Zenith Retail (competitive displacement). `GET /api/demo-accounts` lists them, picker in LeftPane opens on click, disabled state for already-loaded accounts.
+- **Loaded Files section restructure**: LeftPane now has a distinct "Add Sources" area (dropzone + demo picker) and a "Loaded Files" section below with count + list. "Try with demo files" button auto-hides once ALL three demo accounts are fully loaded, comes back when any demo file is deleted.
+
 ## What's been implemented (2026-02-23)
-- Full backend RAG pipeline with GPT 5.6 Terra ✔
-- File upload (PDF/DOCX/TXT) with source-type inference ✔
-- Structured brief JSON with 5 sections, contradictions, insufficient-source flags ✔
-- Follow-up chat grounded in sources; OOS refusal ✔
-- Full 3-pane frontend with pastel Morse aesthetic ✔
-- Citation panel with source chunk view + color-coded confidence ✔
-- Thumbs up/down + comment feedback ✔
-- Brightline Analytics demo preloaded ✔
-- Testing subagent: 100% pass (backend + frontend + integration)
+- Full backend RAG pipeline with GPT 5.6 Terra
+- File upload (PDF/DOCX/TXT) with source-type inference
+- Structured brief JSON with 5 sections, contradictions, insufficient-source flags
+- Follow-up chat grounded in sources; OOS refusal
+- Full 3-pane frontend with pastel Morse aesthetic
+- Citation panel with source chunk view + color-coded confidence
+- Thumbs up/down + comment feedback
+- File preview modal + per-file download
+- Bug fix: sources are append-only (demos never disappear on upload)
 
 ## Prioritized backlog
-- P1: Export brief to PDF / share link.
-- P1: Persist sessions across refresh (optional Mongo storage per session id).
-- P2: Streaming brief generation (SSE) for faster time-to-first-word.
-- P2: Additional demo accounts (SMB, technical eval, competitive displacement).
-- P2: Diff view when the same insight is contradicted across sources.
+- P2: Reconcile brief header account label when multiple demo accounts are loaded (currently shows first-loaded account's name).
+- P2: Improve filename truncation in Loaded Files (middle-ellipsis or wider pane).
+- P2: Persist sessions across refresh (Mongo storage).
+- P2: Per-section retrieval (retrieve_top_k inside generate_section) to cut token cost on large source sets.
+- P3: Streaming to be token-level per section (currently section-level).
 - P3: Slack / Gmail import of raw threads.
